@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: delta-options-desk
+    runtime: python
+    plan: free
+    buildCommand: python -V
+    startCommand: python app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
