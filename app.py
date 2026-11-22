@@ -164,6 +164,7 @@ def market_data(asset, expiry):
     displayed_index_move = index_price - index_previous_close if index_price is not None and index_previous_close is not None else None
     for row in rows:
         row["custom_delta"] = displayed_index_move / row["ltp_change"] if displayed_index_move is not None and row["ltp_change"] not in (None, 0) else None
+        row["custom_oi"] = abs(row["delta"]) * row["oi"] if row["delta"] is not None and row["oi"] is not None else None
     rows.sort(key=lambda r: (r["strike"] is None, r["strike"] or 0, r["type"]))
     with sqlite3.connect(DB) as con:
         con.executemany("INSERT INTO iv_readings VALUES (?,?,?,?,?,?,?,?)", [(now, asset, expiry, r["symbol"], r["strike"], r["type"], r["iv"], index_price) for r in rows])
@@ -209,7 +210,7 @@ class Handler(BaseHTTPRequestHandler):
                     rows = data["rows"]
                     calls = [r for r in rows if r["type"] == "Call"]
                     puts = [r for r in rows if r["type"] == "Put"]
-                    sum_fields = {"oi", "volume", "bid_size", "ask_size"}
+                    sum_fields = {"custom_oi", "oi", "volume", "bid_size", "ask_size", "delta", "theta", "vega"}
                     def side_metrics(side_rows):
                         keys = {key for row in side_rows for key, value in row.items() if key not in {"symbol", "type", "strike", "previous_close", "ltp_change_basis"} and isinstance(value, (int, float))}
                         result = {}
