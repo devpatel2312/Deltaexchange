@@ -7,7 +7,7 @@ WORKDIR /app
 COPY requirements.txt .
 # Xvfb gives the visible-browser login (UPSTOX_HEADLESS=false) a virtual display; upstox.py starts it on demand.
 RUN pip install --no-cache-dir --break-system-packages -r requirements.txt \
- && apt-get update && apt-get install -y --no-install-recommends xvfb \
+ && apt-get update && apt-get install -y --no-install-recommends xvfb xfonts-base \
  && rm -rf /var/lib/apt/lists/*
 
 COPY . .

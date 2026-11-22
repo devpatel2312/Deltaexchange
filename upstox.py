@@ -108,17 +108,33 @@ def _fresh_totp():
 
 # ---------- Browser login ----------
 
+_xvfb = None
+
+
 def _use_headless():
     """A visible browser needs a display. On a Linux server without one, start a virtual
-    display (Xvfb) the first time it's needed; fall back to headless if Xvfb isn't installed."""
-    if HEADLESS or os.name == "nt" or os.environ.get("DISPLAY"):
+    display (Xvfb) and wait until it's ready; fall back to headless if that fails."""
+    global _xvfb
+    if HEADLESS or os.name == "nt":
         return HEADLESS
-    if not shutil.which("Xvfb"):
-        return True
-    subprocess.Popen(["Xvfb", ":99", "-screen", "0", "1280x800x24", "-nolisten", "tcp"],
-                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if os.environ.get("DISPLAY") and _xvfb is None:
+        return False                                   # a real desktop display
+    sock = "/tmp/.X11-unix/X99"
+    if _xvfb is None or _xvfb.poll() is not None or not os.path.exists(sock):
+        if not shutil.which("Xvfb"):
+            print("Upstox: Xvfb not installed - using headless browser")
+            return True
+        log = open("/tmp/xvfb.log", "w")
+        _xvfb = subprocess.Popen(["Xvfb", ":99", "-screen", "0", "1280x800x24", "-nolisten", "tcp", "-ac"],
+                                 stdout=log, stderr=log)
+        end = time.time() + 10
+        while time.time() < end and not os.path.exists(sock) and _xvfb.poll() is None:
+            time.sleep(0.2)
+        if not os.path.exists(sock):
+            print("Upstox: virtual display failed to start - using headless browser. Xvfb log:",
+                  open("/tmp/xvfb.log").read()[-500:])
+            return True
     os.environ["DISPLAY"] = ":99"
-    time.sleep(1.5)
     return False
 
 
