@@ -42,3 +42,9 @@ body{font-size:15px}.content{padding-top:14px!important}.page-heading{margin-bot
 @media(max-width:650px){.page-heading h1{font-size:23px}.totals-page-actions{width:100%;justify-content:space-between}.table-wrap td,.table-wrap th{font-size:12px!important;padding:9px 9px!important}#strikeCount{font-size:18px!important;min-width:96px;height:42px}#strikeCount option{font-size:18px!important}.content{padding-top:12px!important}}
 
 .chain-table-wrap{overflow-x:scroll!important;overflow-y:auto;touch-action:pan-y pinch-zoom;scrollbar-gutter:stable;cursor:grab}.chain-table-wrap:active,.chain-table-wrap.is-dragging{cursor:grabbing;user-select:none}.chain-table-wrap::-webkit-scrollbar{height:14px}.chain-table-wrap::-webkit-scrollbar-thumb{background:#566176;border-radius:8px;border:3px solid #151b25}.chain-table-wrap::-webkit-scrollbar-track{background:#0e131b;border-radius:8px}.chain-table-wrap:focus-visible{outline:2px solid #a58afa;outline-offset:2px}
+
+/* Keep the column names visible while scrolling down the chain: the table scrolls inside its own box. */
+@media(min-width:651px){.table-wrap{max-height:calc(100vh - 60px)}}
+.table-wrap thead{position:sticky;top:0;z-index:5}
+.table-wrap thead th:not(.group-call):not(.group-put){background:#121923}
+body.light .table-wrap thead th:not(.group-call):not(.group-put){background:#f4f6fa}
