@@ -404,11 +404,28 @@ def chain(symbol="NIFTY", expiry=""):
     data = body.get("data") or []
     if not data:
         raise UpstoxError("Upstox returned an empty option chain (market data may be unavailable)")
-    out = dict(symbol=sym, expiry=expiry, expiries=exps, spot=data[0].get("underlying_spot_price"),
+    # Underlying's change since the previous close (the chain response doesn't include it).
+    index_change = None
+    try:
+        qs, qb = up_get("/v2/market-quote/quotes", {"instrument_key": ukey})
+        if qs == 200 and isinstance(qb, dict):
+            q = next(iter((qb.get("data") or {}).values()), {})
+            index_change = q.get("net_change")
+    except UpstoxError:
+        pass
+    rows = [dict(strike=x["strike_price"], Call=_side(x.get("call_options")), Put=_side(x.get("put_options")))
+            for x in data]
+    for r in rows:
+        for side in (r["Call"], r["Put"]):
+            chg = side["ltp_change"]
+            # Custom delta = option LTP change / index change
+            side["custom_delta"] = chg / index_change if chg is not None and index_change else None
+    spot = data[0].get("underlying_spot_price")
+    prev = spot - index_change if spot is not None and index_change is not None else None
+    out = dict(symbol=sym, expiry=expiry, expiries=exps, spot=spot,
+               index_change=index_change, index_change_pct=index_change / prev * 100 if prev else None,
                lot_size=inst["lots"].get(ukey), pcr=data[0].get("pcr"),
-               updated=datetime.now(timezone.utc).isoformat(timespec="seconds"),
-               rows=[dict(strike=x["strike_price"], Call=_side(x.get("call_options")),
-                          Put=_side(x.get("put_options"))) for x in data])
+               updated=datetime.now(timezone.utc).isoformat(timespec="seconds"), rows=rows)
     _chain_cache[(ukey, expiry)] = (time.time(), out)
     return out
 

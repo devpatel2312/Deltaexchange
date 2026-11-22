@@ -54,3 +54,6 @@ body.light .table-wrap thead th:not(.group-call):not(.group-put){background:#f4f
 .table-wrap td small.cell-pct{font-size:12px!important;font-weight:600;color:#a9b6c8}
 body.light .table-wrap td small.cell-pct{color:#4d5a6e}
 @media(max-width:650px){.table-wrap td small,.table-wrap td small.cell-pct{font-size:11px!important}}
+
+/* Column picker must sit above the sticky table header. */
+.column-control{z-index:30}.column-menu{z-index:30}

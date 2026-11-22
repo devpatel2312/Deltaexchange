@@ -7,6 +7,7 @@ const COLUMNS = [
   {key: 'volume', label: 'VOLUME', sum: 1},
   {key: 'iv', label: 'IV', d: 2},
   {key: 'delta', label: 'DELTA', d: 4, signed: 1},
+  {key: 'custom_delta', label: 'CUSTOM Δ', d: 4, signed: 1},
   {key: 'gamma', label: 'GAMMA', d: 4},
   {key: 'theta', label: 'THETA', d: 2, signed: 1},
   {key: 'vega', label: 'VEGA', d: 2},
@@ -37,6 +38,7 @@ function cell(row, c) {
     const cls = n > 0 ? 'positive' : n < 0 ? 'negative' : '';
     return `<span class="${cls}" title="Previous close ${fmt(row.prev_close, 2)}">${signed(n, 2)}<small>${row.ltp_change_pct == null ? '' : signed(row.ltp_change_pct, 2) + '%'}</small></span>`;
   }
+  if (c.key === 'custom_delta') return `<span title="Option LTP change ÷ index change">${signed(n, 4)}</span>`;
   if (c.signed) return `<span class="${n > 0 ? 'positive' : n < 0 ? 'negative' : ''}">${signed(n, c.d || 0)}</span>`;
   return fmt(n, c.d || 0);
 }
@@ -89,7 +91,9 @@ function renderSummary() {
   const d = st.data;
   $('underlying').textContent = fmt(d.spot, 2);
   $('symbolLabel').textContent = `${d.symbol} · INR`;
-  $('lotSize').textContent = d.lot_size ? `Lot size ${fmt(d.lot_size)}` : '';
+  const chg = d.index_change, lot = d.lot_size ? ` · Lot ${fmt(d.lot_size)}` : '';
+  $('lotSize').className = `price-change ${chg > 0 ? 'positive' : chg < 0 ? 'negative' : ''}`;
+  $('lotSize').textContent = (chg == null ? 'Change unavailable' : `${signed(chg, 2)} (${signed(d.index_change_pct, 2)}%)`) + lot;
   $('expiryBadge').textContent = d.expiry;
   $('updated').textContent = `Updated ${new Date(d.updated).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'})}`;
   const sum = (s, k) => d.rows.reduce((a, r) => a + (Number(r[s]?.[k]) || 0), 0);
