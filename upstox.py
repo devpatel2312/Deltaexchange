@@ -13,7 +13,7 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlencode, urlparse, parse_qs
 from urllib.request import Request, urlopen
-import base64, gzip, hashlib, hmac, json, os, re, struct, threading, time, zlib
+import base64, gzip, hashlib, hmac, json, os, re, shutil, struct, subprocess, threading, time, zlib
 
 ROOT = Path(__file__).resolve().parent
 
@@ -108,6 +108,20 @@ def _fresh_totp():
 
 # ---------- Browser login ----------
 
+def _use_headless():
+    """A visible browser needs a display. On a Linux server without one, start a virtual
+    display (Xvfb) the first time it's needed; fall back to headless if Xvfb isn't installed."""
+    if HEADLESS or os.name == "nt" or os.environ.get("DISPLAY"):
+        return HEADLESS
+    if not shutil.which("Xvfb"):
+        return True
+    subprocess.Popen(["Xvfb", ":99", "-screen", "0", "1280x800x24", "-nolisten", "tcp"],
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    os.environ["DISPLAY"] = ":99"
+    time.sleep(1.5)
+    return False
+
+
 def _fetch_code():
     from playwright.sync_api import sync_playwright  # imported lazily: only needed when logging in
     url = DIALOG + "?" + urlencode(dict(client_id=API_KEY, redirect_uri=REDIRECT_URI, response_type="code"))
@@ -119,7 +133,7 @@ def _fetch_code():
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
-            headless=HEADLESS, channel="chromium",   # "chromium" channel = new headless mode (full browser)
+            headless=_use_headless(), channel="chromium",   # "chromium" channel = new headless mode (full browser)
             args=["--disable-blink-features=AutomationControlled", "--no-sandbox",
                   "--disable-dev-shm-usage", "--disable-gpu"])
         try:
