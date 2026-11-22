@@ -48,3 +48,9 @@ body{font-size:15px}.content{padding-top:14px!important}.page-heading{margin-bot
 .table-wrap thead{position:sticky;top:0;z-index:5}
 .table-wrap thead th:not(.group-call):not(.group-put){background:#121923}
 body.light .table-wrap thead th:not(.group-call):not(.group-put){background:#f4f6fa}
+
+/* Larger percentage labels under chain values (% of column max and LTP change %). */
+.table-wrap td small{font-size:12px!important;margin-top:3px}
+.table-wrap td small.cell-pct{font-size:12px!important;font-weight:600;color:#a9b6c8}
+body.light .table-wrap td small.cell-pct{color:#4d5a6e}
+@media(max-width:650px){.table-wrap td small,.table-wrap td small.cell-pct{font-size:11px!important}}
