@@ -109,6 +109,7 @@ def _fresh_totp():
 # ---------- Browser login ----------
 
 _xvfb = None
+_diag = {}
 
 
 def _use_headless():
@@ -148,10 +149,20 @@ def _fetch_code():
             got["code"] = parse_qs(urlparse(req.url).query)["code"][0]
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=_use_headless(), channel="chromium",   # "chromium" channel = new headless mode (full browser)
+        launch = lambda headless: p.chromium.launch(
+            headless=headless, channel="chromium",   # "chromium" channel = new headless mode (full browser)
             args=["--disable-blink-features=AutomationControlled", "--no-sandbox",
                   "--disable-dev-shm-usage", "--disable-gpu"])
+        headless = _use_headless()
+        try:
+            browser = launch(headless)
+        except Exception as exc:
+            if headless:
+                raise
+            _diag["headed_launch_error"] = str(exc)[-400:]
+            print("Upstox: visible browser failed to start - retrying headless")
+            browser = launch(True)
+        _diag["last_mode"] = "headless" if headless or "headed_launch_error" in _diag else "visible"
         try:
             page = browser.new_page(user_agent=UA, viewport={"width": 1280, "height": 800})
             # Skip images/fonts/media to keep memory low on small hosts.
@@ -403,8 +414,16 @@ def chain(symbol="NIFTY", expiry=""):
 
 
 def status():
+    xlog = ""
+    try:
+        xlog = open("/tmp/xvfb.log").read()[-400:]
+    except OSError:
+        pass
     return {"configured": configured(), "logged_in": bool(_cached_token()),
-            "last_error": _state["last_error"]}
+            "last_error": _state["last_error"],
+            "browser": {**_diag, "display": os.environ.get("DISPLAY"),
+                        "xvfb_running": _xvfb is not None and _xvfb.poll() is None,
+                        "xvfb_socket": os.path.exists("/tmp/.X11-unix/X99"), "xvfb_log": xlog}}
 
 
 def start_background():
