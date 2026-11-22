@@ -161,6 +161,9 @@ def market_data(asset, expiry):
             ltp_change = ltp * rolling_change_pct / (100 + rolling_change_pct)
             change_basis = "rolling_24h_fallback"
         rows.append({"symbol": symbol, "type": kind, "strike": strike, "bid": num(quotes, "best_bid") if num(quotes, "best_bid") is not None else num(t, "best_bid", "bid_price"), "ask": num(quotes, "best_ask") if num(quotes, "best_ask") is not None else num(t, "best_ask", "ask_price"), "bid_size": num(quotes, "bid_size"), "ask_size": num(quotes, "ask_size"), "mark": num(t, "mark_price", "mark_price_usd", "close"), "ltp": ltp, "previous_close": previous_close, "ltp_change": ltp_change, "ltp_change_pct": ltp_change_pct, "ltp_change_basis": change_basis, "iv": iv, "oi": num(t, "oi", "open_interest"), "volume": num(t, "volume", "volume_24h"), "delta": greek(t, "delta"), "gamma": greek(t, "gamma"), "theta": greek(t, "theta"), "vega": greek(t, "vega")})
+    displayed_index_move = index_price - index_previous_close if index_price is not None and index_previous_close is not None else None
+    for row in rows:
+        row["custom_delta"] = displayed_index_move / row["ltp_change"] if displayed_index_move is not None and row["ltp_change"] not in (None, 0) else None
     rows.sort(key=lambda r: (r["strike"] is None, r["strike"] or 0, r["type"]))
     with sqlite3.connect(DB) as con:
         con.executemany("INSERT INTO iv_readings VALUES (?,?,?,?,?,?,?,?)", [(now, asset, expiry, r["symbol"], r["strike"], r["type"], r["iv"], index_price) for r in rows])
@@ -185,7 +188,9 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if parsed.path == "/":
                 return self.respond(200, (ROOT / "templates" / "index.html").read_bytes(), "text/html; charset=utf-8")
-            if parsed.path in ("/static/style.css", "/static/app.js"):
+            if parsed.path == "/totals":
+                return self.respond(200, (ROOT / "templates" / "totals.html").read_bytes(), "text/html; charset=utf-8")
+            if parsed.path in ("/static/style.css", "/static/app.js", "/static/totals.js", "/static/columns.js"):
                 file = ROOT / parsed.path.lstrip("/")
                 return self.respond(200, file.read_bytes(), "text/css; charset=utf-8" if file.suffix == ".css" else "text/javascript; charset=utf-8")
             if parsed.path == "/api/expiries":
@@ -194,6 +199,28 @@ class Handler(BaseHTTPRequestHandler):
                     return self.respond(400, json.dumps({"error": "Choose BTC or ETH"}))
                 vals = sorted({expiry_label(expiry_of(p)) for p in products(asset) if expiry_of(p) and expiry_in_future(expiry_of(p))}, key=expiry_order)
                 return self.respond(200, json.dumps({"expiries": vals}))
+            if parsed.path == "/api/totals":
+                asset = parse_qs(parsed.query).get("asset", ["BTC"])[0].upper()
+                if asset not in {"BTC", "ETH"}:
+                    return self.respond(400, json.dumps({"error": "Choose BTC or ETH"}))
+                expiries = sorted({expiry_label(expiry_of(p)) for p in products(asset) if expiry_of(p) and expiry_in_future(expiry_of(p))}, key=expiry_order)
+                def aggregate(expiry):
+                    data = market_data(asset, expiry)
+                    rows = data["rows"]
+                    calls = [r for r in rows if r["type"] == "Call"]
+                    puts = [r for r in rows if r["type"] == "Put"]
+                    sum_fields = {"oi", "volume", "bid_size", "ask_size"}
+                    def side_metrics(side_rows):
+                        keys = {key for row in side_rows for key, value in row.items() if key not in {"symbol", "type", "strike", "previous_close", "ltp_change_basis"} and isinstance(value, (int, float))}
+                        result = {}
+                        for key in keys:
+                            vals = [row[key] for row in side_rows if isinstance(row.get(key), (int, float))]
+                            result[key] = sum(vals) if key in sum_fields else (sum(vals) / len(vals) if vals else None)
+                        return result
+                    return {"expiry": expiry, "contracts": len(rows), "call": side_metrics(calls), "put": side_metrics(puts)}
+                with ThreadPoolExecutor(max_workers=4) as pool:
+                    totals = list(pool.map(aggregate, expiries))
+                return self.respond(200, json.dumps({"asset": asset, "totals": totals, "updated": datetime.now(timezone.utc).isoformat(timespec="seconds")}))
             if parsed.path == "/api/market":
                 q = parse_qs(parsed.query)
                 asset, expiry = q.get("asset", ["BTC"])[0].upper(), q.get("expiry", [""])[0]

@@ -31,7 +31,7 @@
           <article class="summary-card"><div class="summary-top"><span>OPEN INTEREST</span><span class="card-glyph blue">◉</span></div><strong id="openInterest">—</strong><small>Combined contracts</small></article>
         </section>
         <section class="chain-section">
-          <div class="chain-header"><div><div class="section-title"><h2>Option chain</h2><span id="expiryBadge" class="expiry-badge">—</span></div><p>Live option quotes with per-column extremes highlighted.</p></div><div class="chain-actions"><div class="column-control"><button class="outline-button" id="columnsBtn">☷ <span>Columns</span><b id="columnCount">8</b></button><div class="column-menu hidden" id="columnMenu"><div class="menu-title">VISIBLE COLUMNS</div><div id="columnOptions"></div></div></div><button class="outline-button" id="extremesBtn">↕ <span>Top / bottom</span><b id="extremeCount">3</b></button></div></div>
+          <div class="chain-header"><div><div class="section-title"><h2>Option chain</h2><span id="expiryBadge" class="expiry-badge">—</span></div><p>Live option quotes with percentage of maximum shown on each column.</p></div><div class="chain-actions"><div class="column-control"><button class="outline-button" id="columnsBtn">☷ <span>Columns</span><b id="columnCount">8</b></button><div class="column-menu hidden" id="columnMenu"><div class="menu-title">VISIBLE COLUMNS</div><div id="columnOptions"></div></div></div><label class="strike-count-control">STRIKES <select id="strikeCount"><option>3</option><option>6</option><option>9</option><option>12</option><option>15</option><option>18</option><option>21</option><option>24</option><option>27</option><option>30</option><option value="all">All</option></select></label><a class="outline-button totals-button" href="/totals">Totals across expiries</a></div></div>
           <div class="table-wrap"><table id="chainTable"><thead></thead><tbody><tr><td colspan="14" class="empty-state"><span class="loader"></span><br>Loading live option chain…</td></tr></tbody><tfoot></tfoot></table></div>
           <div class="table-footer"><span id="rowCount">Waiting for market data</span><div class="legend"><span><i class="legend-high"></i> Column highs</span><span><i class="legend-low"></i> Column lows</span><span>Bottom row: quantities summed; prices and metrics averaged</span><span>LTP CHG marks 24h fallback when previous-day candle is missing</span><span>Custom Δ = displayed index change ÷ displayed LTP change</span></div></div>
         </section>
@@ -39,5 +39,5 @@
       </section>
     </main>
   </div>
-  <script src="/static/app.js"></script>
+  <script src="/static/columns.js"></script><script src="/static/app.js"></script>
 </body></html>

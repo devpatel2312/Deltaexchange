@@ -1,15 +1,6 @@
 const API='/api';
-const columns=[
-  {key:'delta',label:'DELTA'},{key:'custom_delta',label:'CUSTOM Δ'},
-  {key:'ltp_change',label:'LTP CHANGE'},{key:'ltp',label:'LTP'},
-  {key:'oi',label:'OPEN INT.'},{key:'volume',label:'VOLUME'},{key:'iv',label:'IV'},
-  {key:'bid_size',label:'BID QTY'},{key:'bid',label:'BID'},{key:'ask',label:'ASK'},{key:'ask_size',label:'ASK QTY'},
-  {key:'mark',label:'MARK'},
-  {key:'gamma',label:'GAMMA'},
-  {key:'theta',label:'THETA'},{key:'vega',label:'VEGA'},
-  {key:'bid',label:'BID'},{key:'ask',label:'ASK'}
-];
-let asset='BTC',rows=[],underlying=null,visible=new Set(['delta','custom_delta','ltp_change','ltp']),extremes=3,refreshTimer=null,hasLoaded=false,loading=false;
+const columns=window.OPTION_COLUMNS;
+let asset='BTC',rows=[],underlying=null,visible=new Set(['delta','custom_delta','ltp_change','ltp']),strikeLimit=3,refreshTimer=null,hasLoaded=false,loading=false;
 const $=id=>document.getElementById(id);
 const fmt=(n,d=2)=>n==null||!Number.isFinite(Number(n))?'—':Number(n).toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d});
 const qtyFmt=n=>{if(n==null)return '—';const x=Number(n),d=x===0||Math.abs(x)>=100?0:Math.abs(x)<1?3:2;return fmt(x,d)};
@@ -31,10 +22,11 @@ function renderTable(){
   for(const row of rows){if(row.strike==null)continue;const key=String(row.strike);if(!byStrike.has(key))byStrike.set(key,{strike:Number(row.strike),Call:null,Put:null});byStrike.get(key)[row.type]=row;}
   const pairs=[...byStrike.values()].sort((a,b)=>a.strike-b.strike);
   const spotPair=pairs.reduce((best,p)=>!best||Math.abs(p.strike-(underlying||0))<Math.abs(best.strike-(underlying||0))?p:best,null);
+  const center=Math.max(0,pairs.indexOf(spotPair));const shown=strikeLimit==='all'?pairs:pairs.slice(Math.max(0,center-Number(strikeLimit)),center+Number(strikeLimit)+1);
   const ranks={Call:{},Put:{}};
-  for(const side of ['Call','Put'])for(const field of fields){if(['oi','volume','iv','ltp','ltp_change','bid_size','ask_size','mark','custom_delta','delta','gamma','theta','vega','bid','ask'].includes(field.key)){const vals=pairs.map((p,i)=>({v:Number(p[side]?.[field.key]),i})).filter(x=>Number.isFinite(x.v)).sort((a,b)=>a.v-b.v);const k=Math.min(extremes,Math.floor(vals.length/2));ranks[side][field.key]={low:new Set(vals.slice(0,k).map(x=>x.i)),high:new Set(vals.slice(-k).map(x=>x.i))};}}
-  const renderSide=(pair,index,side,fieldList)=>fieldList.map(c=>{const row=pair[side],rank=ranks[side][c.key],tone=rank?(rank.high.has(index)?'high':rank.low.has(index)?'low':''):'';const title=c.key==='custom_delta'?'Displayed index price change ÷ displayed option LTP change':'';return `<td class="${side==='Call'?'call-cell':'put-cell'} ${tone}" ${title?`title="${title}"`:''}>${row?value(row,c.key):'—'}</td>`}).join('');
-  body.innerHTML=pairs.map((p,i)=>`<tr class="strike-row ${p===spotPair?'spot-row':''}">${renderSide(p,i,'Call',calls)}<td class="strike-cell">${fmt(p.strike,0)}${p===spotPair?'<span class="spot-tag">SPOT</span>':''}</td>${renderSide(p,i,'Put',puts)}</tr>`).join('');
+  for(const side of ['Call','Put'])for(const field of fields){if(['oi','volume','iv','ltp','ltp_change','bid_size','ask_size','mark','custom_delta','delta','gamma','theta','vega','bid','ask'].includes(field.key)){const vals=pairs.map((p,i)=>({v:Number(p[side]?.[field.key]),i})).filter(x=>Number.isFinite(x.v));const max=Math.max(0,...vals.map(x=>Math.abs(x.v)));ranks[side][field.key]={pct:new Map(vals.map(x=>[x.i,max?Math.abs(x.v)/max*100:0]))};}}
+  const renderSide=(pair,index,side,fieldList)=>fieldList.map(c=>{const row=pair[side],rank=ranks[side][c.key],pct=rank?.pct.get(index),otm=side==='Call'?pair.strike>underlying:pair.strike<underlying,tone=rank&&pct>=75?(pct>=99&&otm?'pct-blue':`pct-yellow pct-${Math.floor(pct/5)*5}`):'';const title=c.key==='custom_delta'?'Displayed index price change ÷ displayed option LTP change':'';return `<td class="${side==='Call'?'call-cell':'put-cell'} field-${c.key} ${tone}" ${title?`title="${title}"`:''}>${row?`${value(row,c.key)}${pct!=null?`<small class="cell-pct">${fmt(pct,0)}%</small>`:''}`:'—'}</td>`}).join('');
+  body.innerHTML=shown.map(p=>{const i=pairs.indexOf(p);return `<tr class="strike-row ${p===spotPair?'spot-row':''}">${renderSide(p,i,'Call',calls)}<td class="strike-cell">${fmt(p.strike,0)}${p===spotPair?'<span class="spot-tag">SPOT</span>':''}</td>${renderSide(p,i,'Put',puts)}</tr>`}).join('');
   const sums=new Set(['oi','volume','bid_size','ask_size']);
   const total=(side,key)=>{const scoped=key==='ltp_change'?pairs.filter(p=>p[side]?.ltp_change_basis==='previous_utc_close'):pairs,values=scoped.map(p=>Number(p[side]?.[key])).filter(Number.isFinite);if(!values.length)return '—';if(sums.has(key))return qtyFmt(values.reduce((a,b)=>a+b,0));if(key==='iv')return `${fmt(ivPct(values.reduce((a,b)=>a+b,0)/values.length),1)}%`;if(key==='ltp_change'){const avg=values.reduce((a,b)=>a+b,0)/values.length,pcts=scoped.map(p=>Number(p[side]?.ltp_change_pct)).filter(Number.isFinite),pct=pcts.length?pcts.reduce((a,b)=>a+b,0)/pcts.length:null;return `<span>${avg>0?'+':avg<0?'−':''}${fmt(Math.abs(avg),2)}<small>${pct==null?'':`${pct>0?'+':pct<0?'−':''}${fmt(Math.abs(pct),2)}%`}</small></span>`}if(key==='custom_delta'||key==='delta'||key==='gamma')return fmt(values.reduce((a,b)=>a+b,0)/values.length,4);if(key==='theta'||key==='vega')return fmt(values.reduce((a,b)=>a+b,0)/values.length,3);return fmt(values.reduce((a,b)=>a+b,0)/values.length,2)};
   // Put each side's totals directly below its matching columns.
@@ -55,7 +47,7 @@ function updateSummary(data){
 }
 async function loadExpiries(keep=false){
   const sel=$('expiry');sel.innerHTML='<option>Loading…</option>';
-  try{const res=await fetch(`${API}/expiries?asset=${asset}`),data=await res.json();if(!res.ok)throw Error(data.error);if(!data.expiries.length)throw Error('No listed expiries found.');sel.innerHTML=data.expiries.map(e=>`<option value="${e}">${e}</option>`).join('');if(keep&&[...sel.options].some(o=>o.value===window.currentExpiry))sel.value=window.currentExpiry;await loadMarket(true)}catch(err){showError(err.message)}
+  try{const res=await fetch(`${API}/expiries?asset=${asset}`),data=await res.json();if(!res.ok)throw Error(data.error);if(!data.expiries.length)throw Error('No listed expiries found.');sel.innerHTML=data.expiries.map(e=>`<option value="${e}">${e}</option>`).join('');if(keep&&[...sel.options].some(o=>o.value===window.currentExpiry))sel.value=window.currentExpiry;preloadTotals();await loadMarket(true)}catch(err){showError(err.message)}
 }
 async function loadMarket(initial=false){
   const expiry=$('expiry').value;if(!expiry||expiry==='Loading…'||loading)return;loading=true;window.currentExpiry=expiry;$('refresh').classList.add('is-loading');$('refreshTop').classList.add('is-loading');
@@ -69,12 +61,13 @@ async function loadMarket(initial=false){
   }catch(err){if(hasLoaded){$('chainTable').classList.add('feed-stale');$('updated').textContent='Refresh failed · showing last received data'}else showError(err.message)}
   finally{loading=false;$('refresh').classList.remove('is-loading');$('refreshTop').classList.remove('is-loading')}
 }
+let totalsLoading=false;async function preloadTotals(){if(totalsLoading)return;totalsLoading=true;try{const r=await fetch(`${API}/totals?asset=${asset}`,{cache:'no-store'}),d=await r.json();if(r.ok)localStorage.setItem(`delta-totals-${asset}`,JSON.stringify(d))}catch(e){}finally{totalsLoading=false}}
 function showError(message){$('updated').textContent='Market feed unavailable';$('chainTable').querySelector('tbody').innerHTML=`<tr><td colspan="${visible.size*2+1}"><div class="error-banner">${message} Check your connection and refresh.</div></td></tr>`;}
 function applyTheme(theme){document.body.classList.toggle('light',theme==='light');localStorage.setItem('delta-theme',theme);$('themeToggle').innerHTML=theme==='light'?'◐ <span>Dark</span>':'☼ <span>Light</span>';}
 document.querySelectorAll('.asset').forEach(b=>b.addEventListener('click',()=>{if(asset===b.dataset.asset)return;asset=b.dataset.asset;hasLoaded=false;document.querySelectorAll('.asset').forEach(x=>x.classList.toggle('active',x===b));loadExpiries()}));
 $('expiry').addEventListener('change',()=>{hasLoaded=false;loadMarket(true)});
 $('refresh').addEventListener('click',()=>loadMarket(false));$('refreshTop').addEventListener('click',()=>loadMarket(false));
 $('columnsBtn').addEventListener('click',e=>{e.stopPropagation();$('columnMenu').classList.toggle('hidden')});document.addEventListener('click',e=>{if(!$('columnMenu').contains(e.target))$('columnMenu').classList.add('hidden')});
-$('extremesBtn').addEventListener('click',()=>{extremes=extremes===3?2:3;$('extremeCount').textContent=extremes;renderTable()});
+$('strikeCount').addEventListener('change',e=>{strikeLimit=e.target.value;renderTable()});
 $('themeToggle').addEventListener('click',()=>applyTheme(document.body.classList.contains('light')?'dark':'light'));
 applyTheme(localStorage.getItem('delta-theme')||'dark');renderColumnMenu();loadExpiries();refreshTimer=setInterval(()=>loadMarket(false),15000);
