@@ -19,6 +19,6 @@ services:
         sync: false
       - key: UPSTOX_TOTP_SECRET
         sync: false
-      # Visible browser on a virtual display (the mode tested to work with Upstox's login page).
+      # Hidden browser: tested working on Render and uses the least memory.
       - key: UPSTOX_HEADLESS
-        value: "false"
+        value: "true"

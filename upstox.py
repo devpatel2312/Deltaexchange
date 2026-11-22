@@ -148,12 +148,12 @@ def _fetch_code():
         if req.url.startswith(REDIRECT_URI) and "code=" in req.url:
             got["code"] = parse_qs(urlparse(req.url).query)["code"][0]
 
+    headless = _use_headless()   # before sync_playwright(): its driver process inherits DISPLAY at start
     with sync_playwright() as p:
         launch = lambda headless: p.chromium.launch(
             headless=headless, channel="chromium",   # "chromium" channel = new headless mode (full browser)
             args=["--disable-blink-features=AutomationControlled", "--no-sandbox",
                   "--disable-dev-shm-usage", "--disable-gpu"])
-        headless = _use_headless()
         try:
             browser = launch(headless)
         except Exception as exc:
