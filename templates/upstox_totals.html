@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NSE totals · Upstox · Market desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .symbol-picker{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+    .symbol-picker select,.symbol-picker input{background:#0d121a;border:1px solid #293342;color:#dbe3ed;border-radius:6px;padding:9px 10px;font:500 13px var(--mono);min-width:0}
+    .symbol-picker input{width:190px}
+    body.light .symbol-picker select,body.light .symbol-picker input{background:#fff;border-color:#d9dfe8;color:#293447}
+    .totals-strip{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:14px}
+    .spot-line{font:500 14px var(--mono);color:#c8d1dc}body.light .spot-line{color:#293447}
+    #totalsTable th.call-head,#totalsTable th.put-head{text-align:right!important}
+    .row-error{color:#ff9cab;text-align:left!important}
+    @media(max-width:650px){.symbol-picker{width:100%}.symbol-picker input{flex:1;width:auto}}
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/"><span class="brand-mark">Δ</span><span>delta<span class="brand-light">desk</span><small>OPTIONS TERMINAL</small></span></a>
+      <div class="side-label">WORKSPACE</div>
+      <a class="nav" href="/"><span class="nav-icon">◫</span> Crypto options</a>
+      <a class="nav" href="/upstox"><span class="nav-icon">₹</span> NSE options</a>
+      <a class="nav active" href="/upstox/totals"><span class="nav-icon">Σ</span> NSE totals <span class="nav-dot"></span></a>
+      <div class="sidebar-bottom"><div class="exchange-mark">NSE <span>VIA UPSTOX</span></div></div>
+    </aside>
+    <main class="main">
+      <header class="topbar"><div class="crumb">Markets <span>/</span> NSE totals across expiries</div><div class="top-right"><button class="theme-button" id="themeToggle" aria-label="Switch color theme">☼ <span>Light</span></button></div></header>
+      <section class="content">
+        <div class="page-heading"><div><div class="eyebrow">NSE F&amp;O <span>·</span> UPSTOX API</div><h1>NSE totals across expiries</h1><p class="subtitle">Call and put open interest, volume and Greeks grouped by expiry.</p></div><div class="totals-page-actions"><div id="status" class="last-updated">Loading…</div><button class="refresh-button" id="totalsRefresh"><span>↻</span> Refresh</button></div></div>
+        <div class="totals-strip">
+          <div class="symbol-picker">
+            <select id="symbol" aria-label="Index"></select>
+            <input id="stock" list="stockList" placeholder="Stock, e.g. RELIANCE" aria-label="Stock symbol" autocomplete="off"><datalist id="stockList"></datalist>
+          </div>
+          <div class="spot-line" id="spotLine"></div>
+        </div>
+        <section class="chain-section">
+          <div class="chain-header"><div><h2>Expiry totals</h2><p>Quantities and delta, theta, vega are summed across strikes; prices and other metrics are averaged.</p></div><div class="chain-actions"><label class="totals-filter">EXPIRIES <select id="expiryFilter" multiple size="1" title="Use Ctrl or Command to select multiple expiries"></select></label><div class="column-control"><button class="outline-button" id="totalsColumnsBtn">☷ Columns <b id="totalsColumnCount">0</b></button><div class="column-menu hidden" id="totalsColumnMenu"><div class="menu-title">VISIBLE COLUMNS</div><div id="totalsColumnOptions"></div></div></div><a class="outline-button totals-button" id="chainLink" href="/upstox">Option chain</a></div></div>
+          <div class="table-wrap"><table id="totalsTable"><thead></thead><tbody id="totals"><tr><td class="empty-state"><span class="loader"></span><br>Loading all expiries…</td></tr></tbody><tfoot id="totalsFoot"></tfoot></table></div>
+        </section>
+        <footer class="disclaimer">Market data from the Upstox API. Loading every expiry takes a few seconds; the first request after the daily token expiry also logs in to Upstox.</footer>
+      </section>
+    </main>
+  </div>
+  <script src="/static/upstox-columns.js"></script><script src="/static/upstox-totals.js"></script>
+</body></html>

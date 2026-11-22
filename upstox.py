@@ -8,6 +8,7 @@ Upstox tokens expire around 3:30 AM IST. When the saved token is rejected, the n
 request logs in again. Logins are throttled so a public site can't trigger repeated
 attempts and get the Upstox account locked.
 """
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.error import HTTPError
@@ -280,12 +281,15 @@ def _cached_token():
     return _state["token"]
 
 
-def get_token(force=False):
+def get_token(force=False, rejected=None):
+    """Saved token, or a fresh login when forced or when the saved token is the one Upstox
+    just rejected. Requests that hit a 401 together trigger only one login: the others
+    see that the token has already changed and reuse the new one."""
     if not configured():
         raise UpstoxError("Upstox is not configured. Set the UPSTOX_* environment variables on the server.")
     with _token_lock:
         t = _cached_token()
-        if t and not force:
+        if t and not force and t != rejected:
             return t
         _state["token"] = None
         return login()
@@ -293,13 +297,13 @@ def get_token(force=False):
 
 def up_get(path, params):
     """GET with automatic (re)login: a rejected token triggers one login and a retry."""
-    for force in (False, True):
-        token = get_token(force=force)
+    token = get_token()
+    for attempt in (1, 2):
         status, body = _http(BASE + path + "?" + urlencode(params),
                              headers={"Authorization": f"Bearer {token}"})
-        if status != 401:
+        if status != 401 or attempt == 2:
             return status, body
-    return status, body
+        token = get_token(rejected=token)
 
 
 # ---------- Instrument master (streamed: the full file needs ~200 MB if parsed at once) ----------
@@ -367,6 +371,23 @@ def stocks():
 # ---------- Option chain ----------
 
 _chain_cache = {}
+_quote_cache = {}
+
+
+def _net_change(ukey):
+    """Underlying's change since the previous close, cached briefly (shared by all expiries)."""
+    hit = _quote_cache.get(ukey)
+    if hit and time.time() - hit[0] < 8:
+        return hit[1]
+    change = None
+    try:
+        qs, qb = up_get("/v2/market-quote/quotes", {"instrument_key": ukey})
+        if qs == 200 and isinstance(qb, dict):
+            change = next(iter((qb.get("data") or {}).values()), {}).get("net_change")
+    except UpstoxError:
+        pass
+    _quote_cache[ukey] = (time.time(), change)
+    return change
 
 
 def _side(o):
@@ -405,14 +426,7 @@ def chain(symbol="NIFTY", expiry=""):
     if not data:
         raise UpstoxError("Upstox returned an empty option chain (market data may be unavailable)")
     # Underlying's change since the previous close (the chain response doesn't include it).
-    index_change = None
-    try:
-        qs, qb = up_get("/v2/market-quote/quotes", {"instrument_key": ukey})
-        if qs == 200 and isinstance(qb, dict):
-            q = next(iter((qb.get("data") or {}).values()), {})
-            index_change = q.get("net_change")
-    except UpstoxError:
-        pass
+    index_change = _net_change(ukey)
     rows = [dict(strike=x["strike_price"], Call=_side(x.get("call_options")), Put=_side(x.get("put_options")))
             for x in data]
     for r in rows:
@@ -427,6 +441,44 @@ def chain(symbol="NIFTY", expiry=""):
                lot_size=inst["lots"].get(ukey), pcr=data[0].get("pcr"),
                updated=datetime.now(timezone.utc).isoformat(timespec="seconds"), rows=rows)
     _chain_cache[(ukey, expiry)] = (time.time(), out)
+    return out
+
+
+# Quantities are summed across strikes; prices and other metrics are averaged (same as the crypto totals).
+SUM_KEYS = {"custom_oi", "oi", "coi", "volume", "bid_size", "ask_size", "delta", "theta", "vega"}
+_totals_cache = {}
+
+
+def _aggregate(rows, side):
+    vals = {}
+    for r in rows:
+        for k, v in (r[side] or {}).items():
+            if isinstance(v, (int, float)) and k != "prev_close":
+                vals.setdefault(k, []).append(v)
+    return {k: sum(v) if k in SUM_KEYS else sum(v) / len(v) for k, v in vals.items()}
+
+
+def totals(symbol="NIFTY"):
+    """Call and put totals for every upcoming expiry of a symbol."""
+    first = chain(symbol)                       # validates the symbol and logs in if needed
+    sym, exps = first["symbol"], first["expiries"]
+    hit = _totals_cache.get(sym)
+    if hit and time.time() - hit[0] < 15:
+        return hit[1]
+
+    def one(expiry):
+        try:
+            d = chain(sym, expiry)
+        except UpstoxError as exc:
+            return {"expiry": expiry, "error": str(exc)}
+        return {"expiry": expiry, "strikes": len(d["rows"]),
+                "call": _aggregate(d["rows"], "Call"), "put": _aggregate(d["rows"], "Put")}
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        rows = list(pool.map(one, exps))
+    out = {"symbol": sym, "spot": first["spot"], "index_change": first["index_change"],
+           "totals": rows, "updated": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    _totals_cache[sym] = (time.time(), out)
     return out
 
 

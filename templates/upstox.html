@@ -23,7 +23,7 @@
       <a class="brand" href="/"><span class="brand-mark">Δ</span><span>delta<span class="brand-light">desk</span><small>OPTIONS TERMINAL</small></span></a>
       <div class="side-label">WORKSPACE</div>
       <a class="nav" href="/"><span class="nav-icon">◫</span> Crypto options</a>
-      <a class="nav active" href="/upstox"><span class="nav-icon">₹</span> NSE options <span class="nav-dot"></span></a>
+      <a class="nav active" href="/upstox"><span class="nav-icon">₹</span> NSE options <span class="nav-dot"></span></a><a class="nav" href="/upstox/totals"><span class="nav-icon">Σ</span> NSE totals</a>
       <div class="sidebar-bottom"><div class="api-status"><i id="statusDot"></i><span id="statusText">UPSTOX API</span></div><div class="exchange-mark">NSE <span>VIA UPSTOX</span></div></div>
     </aside>
     <main class="main">
@@ -46,7 +46,7 @@
           <article class="summary-card"><div class="summary-top"><span>PUT OPEN INTEREST</span><span class="card-glyph red">↘</span></div><strong id="putOi">—</strong><small id="putCoi">All strikes</small></article>
         </section>
         <section class="chain-section">
-          <div class="chain-header"><div><div class="section-title"><h2>Option chain</h2><span id="expiryBadge" class="expiry-badge">—</span></div><p>Percentage of the column maximum is shown under each value.</p></div><div class="chain-actions"><div class="column-control"><button class="outline-button" id="columnsBtn">☷ <span>Columns</span><b id="columnCount">6</b></button><div class="column-menu hidden" id="columnMenu"><div class="menu-title">VISIBLE COLUMNS</div><div id="columnOptions"></div></div></div><label class="strike-count-control">STRIKES <select id="strikeCount"><option>10</option><option>20</option><option selected>30</option><option>40</option><option value="all">All</option></select></label></div></div>
+          <div class="chain-header"><div><div class="section-title"><h2>Option chain</h2><span id="expiryBadge" class="expiry-badge">—</span></div><p>Percentage of the column maximum is shown under each value.</p></div><div class="chain-actions"><div class="column-control"><button class="outline-button" id="columnsBtn">☷ <span>Columns</span><b id="columnCount">6</b></button><div class="column-menu hidden" id="columnMenu"><div class="menu-title">VISIBLE COLUMNS</div><div id="columnOptions"></div></div></div><label class="strike-count-control">STRIKES <select id="strikeCount"><option>10</option><option>20</option><option selected>30</option><option>40</option><option value="all">All</option></select></label><a class="outline-button totals-button" id="totalsLink" href="/upstox/totals">Totals across expiries</a></div></div>
           <div class="table-wrap chain-table-wrap" tabindex="0" aria-label="Option chain table. Use Shift and mouse wheel to scroll horizontally."><table id="chainTable"><thead></thead><tbody><tr><td colspan="13" class="empty-state"><span class="loader"></span><br>Loading option chain…</td></tr></tbody><tfoot></tfoot></table></div>
           <div class="table-footer"><span id="rowCount">Waiting for market data</span><div class="legend"><span>Shaded: in the money</span><span>Bottom row: quantities summed; prices and metrics averaged</span><span>Custom OI = |delta| × OI</span><span>Custom Δ = option LTP change ÷ index change</span></div></div>
         </section>
@@ -54,5 +54,5 @@
       </section>
     </main>
   </div>
-  <script src="/static/upstox.js"></script>
+  <script src="/static/upstox-columns.js"></script><script src="/static/upstox.js"></script>
 </body></html>

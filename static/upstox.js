@@ -1,30 +1,12 @@
 const $ = id => document.getElementById(id);
-const COLUMNS = [
-  {key: 'custom_oi', label: 'CUSTOM OI', sum: 1},
-  {key: 'oi', label: 'OPEN INT.', sum: 1},
-  {key: 'coi', label: 'CHG IN OI', sum: 1, signed: 1},
-  {key: 'coi_pct', label: 'OI CHG %', signed: 1, d: 2},
-  {key: 'volume', label: 'VOLUME', sum: 1},
-  {key: 'iv', label: 'IV', d: 2},
-  {key: 'delta', label: 'DELTA', d: 4, signed: 1},
-  {key: 'custom_delta', label: 'CUSTOM Δ', d: 4, signed: 1},
-  {key: 'gamma', label: 'GAMMA', d: 4},
-  {key: 'theta', label: 'THETA', d: 2, signed: 1},
-  {key: 'vega', label: 'VEGA', d: 2},
-  {key: 'bid_size', label: 'BID QTY', sum: 1},
-  {key: 'bid', label: 'BID', d: 2},
-  {key: 'ask', label: 'ASK', d: 2},
-  {key: 'ask_size', label: 'ASK QTY', sum: 1},
-  {key: 'ltp_change', label: 'LTP CHANGE', d: 2, signed: 1},
-  {key: 'ltp', label: 'LTP', d: 2},
-];
+const COLUMNS = window.UPSTOX_COLUMNS;
 const DEFAULT_COLS = ['oi', 'coi', 'volume', 'iv', 'ltp_change', 'ltp'];
 const store = {
   get(k, fallback) { try { const v = localStorage.getItem(k); return v == null ? fallback : JSON.parse(v); } catch (e) { return fallback; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
 };
 const st = {
-  symbol: store.get('upstox-symbol', 'NIFTY'), expiry: '', data: null, loading: false,
+  symbol: (new URLSearchParams(location.search).get('symbol') || store.get('upstox-symbol', 'NIFTY')).toUpperCase(), expiry: '', data: null, loading: false,
   visible: new Set(store.get('upstox-cols', DEFAULT_COLS)), strikes: store.get('upstox-strikes', '30'),
 };
 const fmt = (n, d = 0) => n == null || !Number.isFinite(Number(n)) ? '—' : Number(n).toLocaleString('en-IN', {minimumFractionDigits: d, maximumFractionDigits: d});
@@ -95,6 +77,7 @@ function renderSummary() {
   $('lotSize').className = `price-change ${chg > 0 ? 'positive' : chg < 0 ? 'negative' : ''}`;
   $('lotSize').textContent = (chg == null ? 'Change unavailable' : `${signed(chg, 2)} (${signed(d.index_change_pct, 2)}%)`) + lot;
   $('expiryBadge').textContent = d.expiry;
+  $('totalsLink').href = `/upstox/totals?symbol=${encodeURIComponent(d.symbol)}`;
   $('updated').textContent = `Updated ${new Date(d.updated).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'})}`;
   const sum = (s, k) => d.rows.reduce((a, r) => a + (Number(r[s]?.[k]) || 0), 0);
   const co = sum('Call', 'oi'), po = sum('Put', 'oi');

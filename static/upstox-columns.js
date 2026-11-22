@@ -1,0 +1,20 @@
+// Option chain columns shared by the NSE chain and NSE totals pages. sum: totals add up; others average.
+window.UPSTOX_COLUMNS = [
+  {key: 'custom_oi', label: 'CUSTOM OI', sum: 1},
+  {key: 'oi', label: 'OPEN INT.', sum: 1},
+  {key: 'coi', label: 'CHG IN OI', sum: 1, signed: 1},
+  {key: 'coi_pct', label: 'OI CHG %', signed: 1, d: 2},
+  {key: 'volume', label: 'VOLUME', sum: 1},
+  {key: 'iv', label: 'IV', d: 2},
+  {key: 'delta', label: 'DELTA', d: 4, signed: 1},
+  {key: 'custom_delta', label: 'CUSTOM Δ', d: 4, signed: 1},
+  {key: 'gamma', label: 'GAMMA', d: 4},
+  {key: 'theta', label: 'THETA', d: 2, signed: 1},
+  {key: 'vega', label: 'VEGA', d: 2},
+  {key: 'bid_size', label: 'BID QTY', sum: 1},
+  {key: 'bid', label: 'BID', d: 2},
+  {key: 'ask', label: 'ASK', d: 2},
+  {key: 'ask_size', label: 'ASK QTY', sum: 1},
+  {key: 'ltp_change', label: 'LTP CHANGE', d: 2, signed: 1},
+  {key: 'ltp', label: 'LTP', d: 2},
+];

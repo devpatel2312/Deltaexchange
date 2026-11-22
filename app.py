@@ -180,6 +180,8 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path == "/api/upstox/chain":
                 data = upstox.chain(q.get("symbol", ["NIFTY"])[0], q.get("expiry", [""])[0])
                 return self.respond(200, json.dumps(data))
+            if parsed.path == "/api/upstox/totals":
+                return self.respond(200, json.dumps(upstox.totals(q.get("symbol", ["NIFTY"])[0])))
             if parsed.path == "/api/upstox/symbols":
                 return self.respond(200, json.dumps({"indices": upstox.INDICES, "stocks": upstox.stocks()}))
             if parsed.path == "/api/upstox/status":
@@ -222,9 +224,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, (ROOT / "templates" / "totals.html").read_bytes(), "text/html; charset=utf-8")
             if parsed.path == "/upstox":
                 return self.respond(200, (ROOT / "templates" / "upstox.html").read_bytes(), "text/html; charset=utf-8")
+            if parsed.path == "/upstox/totals":
+                return self.respond(200, (ROOT / "templates" / "upstox_totals.html").read_bytes(), "text/html; charset=utf-8")
             if parsed.path.startswith("/api/upstox/"):
                 return self.upstox_api(parsed)
-            if parsed.path in ("/static/style.css", "/static/app.js", "/static/totals.js", "/static/columns.js", "/static/upstox.js"):
+            if parsed.path in ("/static/style.css", "/static/app.js", "/static/totals.js", "/static/columns.js", "/static/upstox.js", "/static/upstox-columns.js", "/static/upstox-totals.js"):
                 file = ROOT / parsed.path.lstrip("/")
                 return self.respond(200, file.read_bytes(), "text/css; charset=utf-8" if file.suffix == ".css" else "text/javascript; charset=utf-8")
             if parsed.path == "/api/expiries":
