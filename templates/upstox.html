@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NSE Options · Upstox · Market desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .symbol-picker{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+    .symbol-picker select,.symbol-picker input{background:#0d121a;border:1px solid #293342;color:#dbe3ed;border-radius:6px;padding:9px 10px;font:500 13px var(--mono);min-width:0}
+    .symbol-picker input{width:190px}
+    body.light .symbol-picker select,body.light .symbol-picker input{background:#fff;border-color:#d9dfe8;color:#293447}
+    .login-note{margin:14px;padding:12px;border-radius:6px;background:#1c2233;color:#b9c4d8;font-size:12px}
+    body.light .login-note{background:#f0ecff;color:#4a3d7a}
+    td.itm:not([class*=pct-]){box-shadow:inset 0 0 0 999px #ffffff0a}body.light td.itm:not([class*=pct-]){box-shadow:inset 0 0 0 999px #0000000d}
+    @media(max-width:650px){.symbol-picker{width:100%}.symbol-picker input{flex:1;width:auto}}
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/"><span class="brand-mark">Δ</span><span>delta<span class="brand-light">desk</span><small>OPTIONS TERMINAL</small></span></a>
+      <div class="side-label">WORKSPACE</div>
+      <a class="nav" href="/"><span class="nav-icon">◫</span> Crypto options</a>
+      <a class="nav active" href="/upstox"><span class="nav-icon">₹</span> NSE options <span class="nav-dot"></span></a>
+      <div class="sidebar-bottom"><div class="api-status"><i id="statusDot"></i><span id="statusText">UPSTOX API</span></div><div class="exchange-mark">NSE <span>VIA UPSTOX</span></div></div>
+    </aside>
+    <main class="main">
+      <header class="topbar"><div class="crumb">Markets <span>/</span> NSE option chain</div><div class="top-right"><button class="outline-button" id="relogin" title="Force a new Upstox login">Re-login</button><button class="icon-button" id="refreshTop" title="Refresh">↻</button><button class="theme-button" id="themeToggle" aria-label="Switch color theme">☼ <span>Light</span></button></div></header>
+      <section class="content">
+        <div class="page-heading"><div><div class="eyebrow">NSE F&amp;O <span>·</span> UPSTOX API</div><h1>NSE option chain</h1><p class="subtitle">Index and stock options with OI, volume, IV and Greeks.</p></div><div class="last-updated"><span class="pulse"></span><span id="updated">Connecting to Upstox…</span></div></div>
+        <section class="market-strip">
+          <div class="symbol-picker">
+            <select id="symbol" aria-label="Index"></select>
+            <input id="stock" list="stockList" placeholder="Stock, e.g. RELIANCE" aria-label="Stock symbol" autocomplete="off"><datalist id="stockList"></datalist>
+          </div>
+          <div class="market-price"><span class="metric-label">SPOT PRICE</span><strong id="underlying">—</strong><span class="price-unit" id="symbolLabel">INR</span><span class="price-change" id="lotSize"></span></div>
+          <div class="market-divider"></div><div class="expiry-picker"><label for="expiry">EXPIRY DATE</label><select id="expiry"><option>Loading…</option></select></div>
+          <button class="refresh-button" id="refresh"><span>↻</span> Refresh</button>
+        </section>
+        <section class="summary-grid">
+          <article class="summary-card"><div class="summary-top"><span>ATM IMPLIED VOL</span><span class="card-glyph violet">⌁</span></div><strong id="atmIv">—</strong><small>Average of ATM call and put</small></article>
+          <article class="summary-card"><div class="summary-top"><span>PUT / CALL RATIO</span><span class="card-glyph blue">◉</span></div><strong id="pcr">—</strong><small>Total put OI ÷ total call OI</small></article>
+          <article class="summary-card"><div class="summary-top"><span>CALL OPEN INTEREST</span><span class="card-glyph green">↗</span></div><strong id="callOi">—</strong><small id="callCoi">All strikes</small></article>
+          <article class="summary-card"><div class="summary-top"><span>PUT OPEN INTEREST</span><span class="card-glyph red">↘</span></div><strong id="putOi">—</strong><small id="putCoi">All strikes</small></article>
+        </section>
+        <section class="chain-section">
+          <div class="chain-header"><div><div class="section-title"><h2>Option chain</h2><span id="expiryBadge" class="expiry-badge">—</span></div><p>Percentage of the column maximum is shown under each value.</p></div><div class="chain-actions"><div class="column-control"><button class="outline-button" id="columnsBtn">☷ <span>Columns</span><b id="columnCount">6</b></button><div class="column-menu hidden" id="columnMenu"><div class="menu-title">VISIBLE COLUMNS</div><div id="columnOptions"></div></div></div><label class="strike-count-control">STRIKES <select id="strikeCount"><option>10</option><option>20</option><option selected>30</option><option>40</option><option value="all">All</option></select></label></div></div>
+          <div class="table-wrap chain-table-wrap" tabindex="0" aria-label="Option chain table. Use Shift and mouse wheel to scroll horizontally."><table id="chainTable"><thead></thead><tbody><tr><td colspan="13" class="empty-state"><span class="loader"></span><br>Loading option chain…</td></tr></tbody><tfoot></tfoot></table></div>
+          <div class="table-footer"><span id="rowCount">Waiting for market data</span><div class="legend"><span>Shaded: in the money</span><span>Bottom row: quantities summed; prices and metrics averaged</span><span>Custom OI = |delta| × OI</span></div></div>
+        </section>
+        <footer class="disclaimer">Market data from the Upstox API. The first request after the daily token expiry (about 3:30 AM IST) logs in automatically and can take up to a minute.</footer>
+      </section>
+    </main>
+  </div>
+  <script src="/static/upstox.js"></script>
+</body></html>

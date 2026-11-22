@@ -13,8 +13,28 @@ The dashboard refreshes every 15 seconds. Its default option-chain columns are D
 
 The dashboard requires an internet connection to reach Delta's official API. It does not fabricate prices if the feed is unavailable.
 
-## Publish as a live site
+## Publish on Render (free)
 
-The repository includes a Render Blueprint in `render.yaml`. In Render, create a new Blueprint deployment from this GitHub repository and deploy the `delta-options-desk` web service. Render assigns the public URL after deployment. The app listens on Render's `PORT` and binds to `0.0.0.0` when hosted.
+`render.yaml` is a Render Blueprint for a free Docker web service named `delta-desk`. In Render choose **New → Blueprint**, pick this repository, and fill in the `UPSTOX_*` values when asked. Free services sleep after 15 idle minutes; a free uptime monitor requesting `/api/upstox/status` every 5–10 minutes keeps it awake. The free disk is wiped on restarts, so nothing is stored long term there.
 
-The free service uses an ephemeral filesystem, so the SQLite IV history is not retained across redeploys or restarts. For persistent history, attach a persistent disk and set `DATA_DIR` to its mount path in the hosting service.
+## Publish on a VPS (Hostinger, Oracle Cloud, ...)
+
+The site can also run on any Ubuntu **VPS** (shared or web hosting plans can't run it: it needs a long-running Python server and a Chromium browser). It runs in Docker with Caddy in front, restarts automatically, and keeps all data in `~/delta-desk/data` on the server, so history survives restarts and redeploys.
+
+1. Create a VPS with **Ubuntu 24.04** (at least 2 GB RAM) and add your SSH public key.
+2. Put your Upstox settings in `.env` (see `.env.example`).
+3. From this folder, run `bash deploy/deploy.sh root@YOUR_VPS_IP`. It installs Docker on first run, copies the app and `.env`, and starts it. Re-run it to deploy changes.
+4. Open `http://YOUR_VPS_IP`. For HTTPS, point a domain's A record at the VPS and add `SITE_ADDRESS=yourdomain.com` to your local `.env` (the deploy copies it to the server), then re-run the deploy; Caddy obtains the certificate automatically.
+
+## NSE option chain (Upstox)
+
+`/upstox` shows the NSE index and stock option chain from the Upstox API. The server logs in to Upstox by itself (mobile → TOTP → PIN in a hidden Chromium browser via Playwright) and saves the token as `upstox_token.json` in `DATA_DIR`. Tokens expire around 3:30 AM IST; the next request after that logs in again, and the server also logs in at 08:30 IST on weekdays while it is awake.
+
+Set these environment variables (copy `.env.example` to `.env`; the deploy script sends it to the server):
+`UPSTOX_API_KEY`, `UPSTOX_API_SECRET`, `UPSTOX_REDIRECT_URI` (exactly the redirect URL registered in the Upstox app), `UPSTOX_MOBILE`, `UPSTOX_PIN`, `UPSTOX_TOTP_SECRET`.
+
+Logins are throttled (at most one every 2 minutes, and 10 minutes after a failure) so visitors to the public site cannot trigger repeated attempts that could lock the Upstox account. If a login fails, the error is shown on the page and a screenshot is saved as `upstox_fail_<step>.png` in `DATA_DIR`.
+
+Local run: `pip install -r requirements.txt`, `playwright install chromium`, then `python app.py`. The Delta pages still work without these packages; only the Upstox login needs them.
+
+On the server the app runs from the `Dockerfile`, which is based on the official Playwright image (Chromium and its libraries included).

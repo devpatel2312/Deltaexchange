@@ -10,6 +10,8 @@ import json
 import os
 import sqlite3
 
+import upstox
+
 ROOT = Path(__file__).resolve().parent
 DB = Path(os.environ.get("DATA_DIR", ROOT)) / "market_history.sqlite3"
 API = "https://api.india.delta.exchange"
@@ -172,6 +174,33 @@ def market_data(asset, expiry):
 
 
 class Handler(BaseHTTPRequestHandler):
+    def upstox_api(self, parsed):
+        q = parse_qs(parsed.query)
+        try:
+            if parsed.path == "/api/upstox/chain":
+                data = upstox.chain(q.get("symbol", ["NIFTY"])[0], q.get("expiry", [""])[0])
+                return self.respond(200, json.dumps(data))
+            if parsed.path == "/api/upstox/symbols":
+                return self.respond(200, json.dumps({"indices": upstox.INDICES, "stocks": upstox.stocks()}))
+            if parsed.path == "/api/upstox/status":
+                return self.respond(200, json.dumps(upstox.status()))
+            if parsed.path == "/api/upstox/relogin" and self.command == "POST":
+                upstox.get_token(force=True)
+                return self.respond(200, json.dumps({"ok": True}))
+            return self.respond(404, json.dumps({"error": "Not found"}))
+        except upstox.UpstoxError as exc:
+            return self.respond(502, json.dumps({"error": str(exc)}))
+        except Exception as exc:
+            self.log_error("Upstox request failed for %s: %r", parsed.path, exc)
+            return self.respond(502, json.dumps({"error": f"Upstox request failed: {exc}"}))
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        if parsed.path.startswith("/api/upstox/"):
+            return self.upstox_api(parsed)
+        return self.respond(404, json.dumps({"error": "Not found"}))
+
+
     def log_message(self, fmt, *args):
         print("%s - %s" % (self.address_string(), fmt % args))
 
@@ -191,7 +220,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, (ROOT / "templates" / "index.html").read_bytes(), "text/html; charset=utf-8")
             if parsed.path == "/totals":
                 return self.respond(200, (ROOT / "templates" / "totals.html").read_bytes(), "text/html; charset=utf-8")
-            if parsed.path in ("/static/style.css", "/static/app.js", "/static/totals.js", "/static/columns.js"):
+            if parsed.path == "/upstox":
+                return self.respond(200, (ROOT / "templates" / "upstox.html").read_bytes(), "text/html; charset=utf-8")
+            if parsed.path.startswith("/api/upstox/"):
+                return self.upstox_api(parsed)
+            if parsed.path in ("/static/style.css", "/static/app.js", "/static/totals.js", "/static/columns.js", "/static/upstox.js"):
                 file = ROOT / parsed.path.lstrip("/")
                 return self.respond(200, file.read_bytes(), "text/css; charset=utf-8" if file.suffix == ".css" else "text/javascript; charset=utf-8")
             if parsed.path == "/api/expiries":
@@ -239,6 +272,7 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     DB.parent.mkdir(parents=True, exist_ok=True)
     init_db()
+    upstox.start_background()
     port = int(os.environ.get("PORT", "8501"))
     host = "0.0.0.0" if "PORT" in os.environ else "127.0.0.1"
     server = ThreadingHTTPServer((host, port), Handler)

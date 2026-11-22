@@ -1,0 +1,25 @@
+services:
+  app:
+    build: .
+    restart: always
+    env_file: .env
+    environment:
+      PORT: "8501"
+      DATA_DIR: /data
+    volumes:
+      - ./data:/data          # SQLite history, Upstox token and instrument cache survive restarts
+    shm_size: "512mb"         # Chromium needs more shared memory than Docker's 64 MB default
+
+  caddy:                       # web server in front: port 80 now, automatic HTTPS once a domain is set
+    image: caddy:2
+    restart: always
+    ports: ["80:80", "443:443"]
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on: [app]
+
+volumes:
+  caddy_data:

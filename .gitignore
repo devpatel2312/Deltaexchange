@@ -9,3 +9,9 @@ market_history.sqlite3
 market_history.sqlite3-*
 .sf/
 .DS_Store
+upstox_token.json
+upstox-NSE-*.json.gz
+upstox_fail_*.png
+
+# Server data folder (docker-compose)
+data/

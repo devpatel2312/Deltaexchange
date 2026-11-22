@@ -1,0 +1,2 @@
+# Only needed for the Upstox auto-login (the Delta dashboard itself is stdlib only).
+playwright==1.49.1

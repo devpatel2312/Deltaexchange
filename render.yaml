@@ -1,10 +1,24 @@
 services:
   - type: web
-    name: delta-options-desk
-    runtime: python
+    name: delta-desk
+    runtime: docker
     plan: free
-    buildCommand: python -V
-    startCommand: python app.py
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/upstox/status
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.12.0
+      # Upstox auto-login. Render asks for these when you create the Blueprint; never commit them.
+      - key: UPSTOX_API_KEY
+        sync: false
+      - key: UPSTOX_API_SECRET
+        sync: false
+      - key: UPSTOX_REDIRECT_URI
+        sync: false
+      - key: UPSTOX_MOBILE
+        sync: false
+      - key: UPSTOX_PIN
+        sync: false
+      - key: UPSTOX_TOTP_SECRET
+        sync: false
+      # Visible browser on a virtual display (the mode tested to work with Upstox's login page).
+      - key: UPSTOX_HEADLESS
+        value: "false"

@@ -1,0 +1,9 @@
+.git
+.env
+.env.*
+.sf
+__pycache__
+*.sqlite3*
+upstox_token.json
+upstox-NSE-*.json.gz
+upstox_fail_*.png
